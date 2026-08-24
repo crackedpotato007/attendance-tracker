@@ -6,13 +6,20 @@
   "scripts": {
     "dev": "react-router dev",
     "build": "tsc -b && vite build",
+    "server:dev": "node --loader ts-node/esm server/src/index.ts",
+    "server:build": "cd server && npx tsc",
+    "server:start": "node server/dist/index.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@calendarjs/ce": "^1.0.7",
     "@react-router/node": "^7.14.2",
+    "@types/canvas-confetti": "^1.9.0",
+    "canvas-confetti": "^1.9.4",
     "chart.js": "^4.5.1",
     "isbot": "^5",
+    "lucide-react": "^1.33.0",
     "react": "^19.2.4",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.4"
