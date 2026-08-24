@@ -1,4 +1,6 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import { AuthProvider } from "./utility/authContext";
+import "./index.css";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -6,18 +8,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Attendance Tracker</title>
-        <Meta />
+        <title>BunkPulse • Student Attendance Tracker & Bunk Intelligence</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          rel="icon"
-          href="/favicon.svg"
-          sizes="any"
-          type="image/svg+xml"
-        ></link>
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+        <Meta />
         <Links />
       </head>
       <body>
-        {children}
+        <AuthProvider>{children}</AuthProvider>
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -26,5 +28,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function Root() {
-  return <Outlet />;
+  return (
+    <AuthProvider>
+      <Outlet />
+    </AuthProvider>
+  );
 }
