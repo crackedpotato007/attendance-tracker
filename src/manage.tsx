@@ -1,5 +1,7 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useRouter } from "next/navigation";
 import Navbar from "./navbar";
 import {
   Sparkles,
@@ -29,7 +31,7 @@ import { api } from "./utility/api";
 import "./manage.css";
 
 function Manage() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [logs, setLogs] = useState<AttendanceRecord[]>([]);
@@ -55,7 +57,7 @@ function Manage() {
       setLogs(logsData || []);
       setConfig(schedData || defaultWorkingDaysConfig);
     } catch {
-      // Backend error fallback
+      // Ignore
     } finally {
       setLoadingData(false);
     }
@@ -64,12 +66,12 @@ function Manage() {
   useEffect(() => {
     if (!authLoading) {
       if (!isAuthenticated) {
-        navigate("/login");
+        router.push("/login");
       } else {
         loadData();
       }
     }
-  }, [authLoading, isAuthenticated, loadData, navigate]);
+  }, [authLoading, isAuthenticated, loadData, router]);
 
   useEffect(() => {
     const handleUpdate = () => loadData();
@@ -349,7 +351,7 @@ function Manage() {
                   You need to enroll in your courses before you can log daily attendance.
                 </p>
               </div>
-              <button className="btn-primary" onClick={() => navigate("/subjects")}>
+              <button className="btn-primary" onClick={() => router.push("/subjects")}>
                 <Plus size={16} />
                 <span>Go to Course Manager</span>
               </button>

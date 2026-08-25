@@ -1,5 +1,7 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useRouter } from "next/navigation";
 import Navbar from "./navbar";
 import {
   BookOpen,
@@ -27,7 +29,7 @@ import { api } from "./utility/api";
 import "./subjectsManager.css";
 
 function SubjectsManager() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [config, setConfig] = useState<WorkingDaysConfig>(defaultWorkingDaysConfig);
@@ -74,12 +76,12 @@ function SubjectsManager() {
   useEffect(() => {
     if (!authLoading) {
       if (!isAuthenticated) {
-        navigate("/login");
+        router.push("/login");
       } else {
         loadData();
       }
     }
-  }, [authLoading, isAuthenticated, loadData, navigate]);
+  }, [authLoading, isAuthenticated, loadData, router]);
 
   const weekDayOptions = [
     { index: 1, short: "Mon", full: "Monday" },

@@ -1,5 +1,7 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useRouter } from "next/navigation";
 import Navbar from "./navbar";
 import {
   Chart as ChartJS,
@@ -57,7 +59,7 @@ ChartJS.register(
 );
 
 function Home() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { currentUser, isAuthenticated, isLoading: authLoading } = useAuth();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [config, setConfig] = useState<WorkingDaysConfig>(defaultWorkingDaysConfig);
@@ -93,12 +95,12 @@ function Home() {
   useEffect(() => {
     if (!authLoading) {
       if (!isAuthenticated) {
-        navigate("/login");
+        router.push("/login");
       } else {
         loadData();
       }
     }
-  }, [authLoading, isAuthenticated, loadData, navigate]);
+  }, [authLoading, isAuthenticated, loadData, router]);
 
   useEffect(() => {
     const handleUpdate = () => loadData();
@@ -301,14 +303,14 @@ function Home() {
           </div>
 
           <div className="dash-hero-actions">
-            <button className="btn-primary" onClick={() => navigate("/manage")}>
+            <button className="btn-primary" onClick={() => router.push("/manage")}>
               <CheckSquare size={16} />
               <span>Log Today's Classes</span>
             </button>
 
             <button
               className="btn-secondary"
-              onClick={() => navigate("/calculator")}
+              onClick={() => router.push("/calculator")}
             >
               <Calculator size={16} />
               <span>Bunk Simulator</span>
@@ -357,7 +359,7 @@ function Home() {
 
             <button
               className="btn-secondary mini-btn"
-              onClick={() => navigate("/calculator")}
+              onClick={() => router.push("/calculator")}
             >
               Plan Recovery ➜
             </button>
@@ -439,7 +441,7 @@ function Home() {
               <span className="metric-val">
                 {config.activeDays?.length || 6} Days / Wk
               </span>
-              <span className="metric-footer-link" onClick={() => navigate("/schedule")}>
+              <span className="metric-footer-link" onClick={() => router.push("/schedule")}>
                 Mon – Sat Active (Customize) ➜
               </span>
             </div>
@@ -458,7 +460,7 @@ function Home() {
 
             <button
               className="btn-secondary mini-btn"
-              onClick={() => navigate("/subjects")}
+              onClick={() => router.push("/subjects")}
             >
               <Plus size={14} /> Manage Subjects
             </button>
@@ -503,7 +505,7 @@ function Home() {
               <button
                 className="btn-primary"
                 style={{ marginTop: "0.5rem" }}
-                onClick={() => navigate("/subjects")}
+                onClick={() => router.push("/subjects")}
               >
                 <Plus size={16} />
                 <span>Enroll Your First Course</span>
@@ -691,7 +693,7 @@ function Home() {
               </div>
               <button
                 className="btn-secondary mini-btn"
-                onClick={() => navigate("/manage")}
+                onClick={() => router.push("/manage")}
               >
                 <CheckSquare size={13} /> Full Logger
               </button>

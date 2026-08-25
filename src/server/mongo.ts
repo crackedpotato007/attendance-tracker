@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { initPulseScheduler } from "./scheduler/pulseScheduler.js";
+import { initPulseScheduler } from "./scheduler/pulseScheduler";
 
 const mongoURI =
   process.env.MONGODB_URI ||

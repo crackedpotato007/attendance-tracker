@@ -1,5 +1,8 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   GraduationCap,
   LayoutDashboard,
@@ -27,8 +30,8 @@ import { api } from "./utility/api";
 import "./navbar.css";
 
 function Navbar() {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const pathname = usePathname();
+  const router = useRouter();
   const { currentUser, logout, isAuthenticated } = useAuth();
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -86,14 +89,14 @@ function Navbar() {
   const handleLogout = async () => {
     await logout();
     setShowProfileDropdown(false);
-    navigate("/login");
+    router.push("/login");
   };
 
   return (
     <header className="clean-navbar-wrapper">
       <div className="navbar-container">
         {/* Brand */}
-        <Link to="/" className="navbar-brand">
+        <Link href="/" className="navbar-brand">
           <div className="brand-logo-circle">
             <GraduationCap size={18} color="#6366f1" />
           </div>
@@ -106,11 +109,11 @@ function Navbar() {
         <nav className="desktop-nav-menu">
           {navLinks.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = pathname === item.path;
             return (
               <Link
                 key={item.path}
-                to={item.path}
+                href={item.path}
                 className={`nav-menu-item ${isActive ? "active" : ""}`}
               >
                 <Icon size={15} />
@@ -127,7 +130,7 @@ function Navbar() {
               {/* Real-time Safe Bunks Pill */}
               <div
                 className="navbar-bunk-pill"
-                onClick={() => navigate("/calculator")}
+                onClick={() => router.push("/calculator")}
                 title="Total safe bunks available across courses"
               >
                 <Flame size={14} color="#f59e0b" />
@@ -141,7 +144,7 @@ function Navbar() {
                 className={`navbar-gauge-pill ${
                   overall.isAboveTarget ? "gauge-safe" : "gauge-danger"
                 }`}
-                onClick={() => navigate("/home")}
+                onClick={() => router.push("/home")}
                 title={`Semester Avg: ${overall.overallPercentage}% (Goal: ${config.globalTarget}%)`}
               >
                 <span className="gauge-pct-text">
@@ -172,9 +175,6 @@ function Navbar() {
                     <div className="dropdown-user-header">
                       <span className="drop-user-name">{currentUser.name}</span>
                       <span className="drop-user-email">{currentUser.email}</span>
-                      {currentUser.college && (
-                        <span className="drop-user-college">{currentUser.college}</span>
-                      )}
                     </div>
 
                     <div className="dropdown-divider"></div>
@@ -184,7 +184,7 @@ function Navbar() {
                         className="dropdown-item-btn"
                         onClick={() => {
                           setShowProfileDropdown(false);
-                          navigate("/home");
+                          router.push("/home");
                         }}
                       >
                         <LayoutDashboard size={14} />
@@ -208,7 +208,7 @@ function Navbar() {
               <button
                 className="btn-primary"
                 style={{ padding: "0.5rem 1.1rem", fontSize: "0.85rem", gap: "0.4rem" }}
-                onClick={() => navigate("/login")}
+                onClick={() => router.push("/login")}
               >
                 <LogIn size={15} />
                 <span>Sign In</span>
@@ -232,11 +232,11 @@ function Navbar() {
           <div className="mobile-links-stack">
             {navLinks.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.path;
+              const isActive = pathname === item.path;
               return (
                 <Link
                   key={item.path}
-                  to={item.path}
+                  href={item.path}
                   className={`mobile-nav-item ${isActive ? "active" : ""}`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
@@ -262,7 +262,7 @@ function Navbar() {
                 className="mobile-nav-item"
                 onClick={() => {
                   setIsMobileMenuOpen(false);
-                  navigate("/login");
+                  router.push("/login");
                 }}
               >
                 <LogIn size={16} />

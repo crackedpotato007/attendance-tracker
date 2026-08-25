@@ -1,8 +1,8 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { parseCookie, stringifySetCookie } from "cookie";
-import { connectToMongo } from "./mongo.js";
-import { UserModel, type IUser } from "./models/User.js";
+import { connectToMongo } from "./mongo";
+import { UserModel, type IUser } from "./models/User";
 
 export const JWT_SECRET =
   process.env.JWT_SECRET || "bunkpulse_super_secret_jwt_key_2026_x99";

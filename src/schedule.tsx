@@ -1,5 +1,7 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useRouter } from "next/navigation";
 import Navbar from "./navbar";
 import {
   Sparkles,
@@ -40,7 +42,7 @@ interface CalendarDayItem {
 }
 
 function Schedule() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [config, setConfig] = useState<WorkingDaysConfig>(defaultWorkingDaysConfig);
   const [logs, setLogs] = useState<AttendanceRecord[]>([]);
@@ -68,14 +70,14 @@ function Schedule() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [schedData, logsData, subsData] = await Promise.all([
+      const [scheduleData, logsData, subjectsData] = await Promise.all([
         api.schedule.get().catch(() => defaultWorkingDaysConfig),
         api.attendance.list().catch(() => []),
         api.subjects.list().catch(() => []),
       ]);
-      setConfig(schedData || defaultWorkingDaysConfig);
+      setConfig(scheduleData || defaultWorkingDaysConfig);
       setLogs(logsData || []);
-      setSubjects(subsData || []);
+      setSubjects(subjectsData || []);
     } catch {
       // Ignore
     } finally {
@@ -86,12 +88,12 @@ function Schedule() {
   useEffect(() => {
     if (!authLoading) {
       if (!isAuthenticated) {
-        navigate("/login");
+        router.push("/login");
       } else {
         loadData();
       }
     }
-  }, [authLoading, isAuthenticated, loadData, navigate]);
+  }, [authLoading, isAuthenticated, loadData, router]);
 
   const daysOfWeek = [
     { index: 1, name: "Monday", short: "Mon" },
@@ -697,7 +699,7 @@ function Schedule() {
                 <div style={{ textAlign: "center", padding: "2rem 1rem", color: "#94a3b8" }}>
                   <BookOpen size={32} style={{ margin: "0 auto 0.5rem auto", opacity: 0.5 }} />
                   <p>No courses enrolled. Please add your subjects in Course Manager first.</p>
-                  <button className="btn-primary" onClick={() => navigate("/subjects")} style={{ marginTop: "0.5rem" }}>
+                  <button className="btn-primary" onClick={() => router.push("/subjects")} style={{ marginTop: "0.5rem" }}>
                     Enroll Courses
                   </button>
                 </div>

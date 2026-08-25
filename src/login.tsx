@@ -1,5 +1,7 @@
+"use client";
+
 import React, { useState } from "react";
-import { useNavigate } from "react-router";
+import { useRouter } from "next/navigation";
 import {
   GraduationCap,
   Mail,
@@ -14,7 +16,7 @@ import { useAuth } from "./utility/authContext";
 import "./login.css";
 
 function Login() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { login, signup } = useAuth();
 
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
@@ -39,14 +41,14 @@ function Login() {
         }
         const res = await signup(name, email, password, college || "School of Engineering");
         if (res.success) {
-          navigate("/home");
+          router.push("/home");
         } else {
           setErrorMsg(res.error || "Failed to create account.");
         }
       } else {
         const res = await login(email, password);
         if (res.success) {
-          navigate("/home");
+          router.push("/home");
         } else {
           setErrorMsg(res.error || "Invalid credentials.");
         }
@@ -63,7 +65,7 @@ function Login() {
       <div className="auth-card glass-card">
         {/* Brand Header */}
         <div className="auth-brand-head">
-          <div className="auth-icon-circle" onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
+          <div className="auth-icon-circle" onClick={() => router.push("/")} style={{ cursor: "pointer" }}>
             <GraduationCap size={24} color="#6366f1" />
           </div>
           <h2 className="auth-brand-name">
@@ -193,7 +195,7 @@ function Login() {
         <div style={{ marginTop: "1.25rem", textAlign: "center" }}>
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={() => router.push("/")}
             style={{
               background: "transparent",
               border: "none",

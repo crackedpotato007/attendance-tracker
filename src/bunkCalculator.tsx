@@ -1,5 +1,7 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useRouter } from "next/navigation";
 import Navbar from "./navbar";
 import {
   AlertTriangle,
@@ -21,7 +23,7 @@ import { api } from "./utility/api";
 import "./bunkCalculator.css";
 
 function BunkCalculator() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -51,7 +53,7 @@ function BunkCalculator() {
       if (subList.length > 0 && !simSubjectId) {
         setSimSubjectId(subList[0].id);
       }
-      if (schedData && typeof schedData.globalTarget === "number") {
+      if (schedData && schedData.globalTarget) {
         setTargetGoal(schedData.globalTarget);
       }
     } catch {
@@ -64,12 +66,12 @@ function BunkCalculator() {
   useEffect(() => {
     if (!authLoading) {
       if (!isAuthenticated) {
-        navigate("/login");
+        router.push("/login");
       } else {
         loadData();
       }
     }
-  }, [authLoading, isAuthenticated, loadData, navigate]);
+  }, [authLoading, isAuthenticated, loadData, router]);
 
   const selectedSubject = subjects.find((s) => s.id === simSubjectId) || subjects[0];
 
@@ -179,7 +181,7 @@ function BunkCalculator() {
                 To simulate safe bunks and leave impacts, please enroll in your courses first.
               </p>
             </div>
-            <button className="btn-primary" onClick={() => navigate("/subjects")}>
+            <button className="btn-primary" onClick={() => router.push("/subjects")}>
               <Plus size={16} />
               <span>Enroll Courses in Course Manager</span>
             </button>

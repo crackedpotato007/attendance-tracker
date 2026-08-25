@@ -1,8 +1,8 @@
 import { Pulse } from "@pulsecron/pulse";
 import mongoose from "mongoose";
-import { SubjectModel } from "../models/Subject.js";
-import { UserScheduleModel } from "../models/UserSchedule.js";
-import { AttendanceLogModel } from "../models/AttendanceLog.js";
+import { SubjectModel } from "../models/Subject";
+import { UserScheduleModel } from "../models/UserSchedule";
+import { AttendanceLogModel } from "../models/AttendanceLog";
 
 const mongoURI =
   process.env.MONGODB_URI ||

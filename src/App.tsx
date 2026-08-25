@@ -1,5 +1,7 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useRouter } from "next/navigation";
 import Navbar from "./navbar";
 import {
   GraduationCap,
@@ -34,7 +36,7 @@ import { api } from "./utility/api";
 import "./App.css";
 
 function App() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [config, setConfig] = useState<WorkingDaysConfig>(defaultWorkingDaysConfig);
@@ -212,7 +214,7 @@ function App() {
                 <>
                   <button
                     className="btn-primary hero-btn-main"
-                    onClick={() => navigate("/manage")}
+                    onClick={() => router.push("/manage")}
                   >
                     <CheckSquare size={18} />
                     <span>Log Today's Classes</span>
@@ -221,7 +223,7 @@ function App() {
 
                   <button
                     className="btn-secondary hero-btn-sub"
-                    onClick={() => navigate("/calculator")}
+                    onClick={() => router.push("/calculator")}
                   >
                     <Calculator size={18} />
                     <span>Bunk Simulator</span>
@@ -229,7 +231,7 @@ function App() {
 
                   <button
                     className="btn-secondary hero-btn-sub"
-                    onClick={() => navigate("/home")}
+                    onClick={() => router.push("/home")}
                   >
                     <LayoutDashboard size={18} />
                     <span>Dashboard</span>
@@ -239,7 +241,7 @@ function App() {
                 <>
                   <button
                     className="btn-primary hero-btn-main"
-                    onClick={() => navigate("/login")}
+                    onClick={() => router.push("/login")}
                   >
                     <LogIn size={18} />
                     <span>Get Started Free</span>
@@ -248,7 +250,7 @@ function App() {
 
                   <button
                     className="btn-secondary hero-btn-sub"
-                    onClick={() => navigate("/login")}
+                    onClick={() => router.push("/login")}
                   >
                     <Zap size={16} color="#6366f1" />
                     <span>Sign In</span>
@@ -309,7 +311,7 @@ function App() {
                   <span style={{ color: "#94a3b8", fontSize: "0.82rem", maxWidth: "260px" }}>
                     Enroll in your semester courses to inspect real-time safe bunks.
                   </span>
-                  <button className="btn-primary" style={{ padding: "0.5rem 1.1rem", fontSize: "0.82rem", marginTop: "0.25rem" }} onClick={() => navigate("/subjects")}>
+                  <button className="btn-primary" style={{ padding: "0.5rem 1.1rem", fontSize: "0.82rem", marginTop: "0.25rem" }} onClick={() => router.push("/subjects")}>
                     <Plus size={14} /> Add Course
                   </button>
                 </div>
@@ -491,7 +493,7 @@ function App() {
                   <button
                     className="btn-primary"
                     style={{ width: "100%", justifyContent: "center", padding: "0.65rem" }}
-                    onClick={() => navigate("/login")}
+                    onClick={() => router.push("/login")}
                   >
                     <LogIn size={15} />
                     <span>Create Your Free Account to Track Your Courses</span>
@@ -569,7 +571,7 @@ function App() {
               <div
                 key={feat.id}
                 className="feature-interactive-card glass-card"
-                onClick={() => navigate(feat.path)}
+                onClick={() => router.push(feat.path)}
               >
                 <div className="feat-top-row">
                   <div className="feat-icon-box">
@@ -609,20 +611,20 @@ function App() {
             <div className="cta-actions">
               {isAuthenticated ? (
                 <>
-                  <button className="btn-primary" onClick={() => navigate("/manage")}>
+                  <button className="btn-primary" onClick={() => router.push("/manage")}>
                     <CheckSquare size={18} />
                     <span>Log Today's Attendance</span>
                   </button>
                   <button
                     className="btn-secondary"
-                    onClick={() => navigate("/calculator")}
+                    onClick={() => router.push("/calculator")}
                   >
                     <Calculator size={18} />
                     <span>Run Bunk Simulation</span>
                   </button>
                 </>
               ) : (
-                <button className="btn-primary" onClick={() => navigate("/login")}>
+                <button className="btn-primary" onClick={() => router.push("/login")}>
                   <LogIn size={18} />
                   <span>Create Free Account / Sign In</span>
                 </button>
