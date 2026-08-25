@@ -4,6 +4,7 @@ import { UserScheduleModel } from "../models/UserSchedule.js";
 import { AttendanceLogModel } from "../models/AttendanceLog.js";
 
 const mongoURI =
+  process.env.MONGODB_URI ||
   "mongodb+srv://admin:drskm1974@cluster0.m90cb.mongodb.net/attendance-tracker?appName=Cluster0";
 
 export const pulse = new Pulse({
@@ -17,6 +18,8 @@ export const pulse = new Pulse({
 
 const DAILY_5PM_JOB = "daily_5pm_attendance_increment";
 const DAILY_1130PM_JOB = "daily_1130pm_auto_absent_fallback";
+
+let isSchedulerInitialized = false;
 
 /**
  * 1. Daily 5:00 PM Attendance Auto-Increment Scan
@@ -191,8 +194,11 @@ export async function executeDailyAutoAbsentFallback(
  * Initialize Pulse MongoDB Job Scheduler
  */
 export async function initPulseScheduler() {
+  if (isSchedulerInitialized) return;
+  isSchedulerInitialized = true;
+
   try {
-    console.log("[@pulsecron/pulse] Initializing Pulse MongoDB Scheduler...");
+    console.log("[@pulsecron/pulse] Initializing Pulse MongoDB Scheduler in SSR Server...");
 
     // 1. Define the 5:00 PM Attendance Auto-Increment Job
     pulse.define(DAILY_5PM_JOB, async (_job: any) => {
@@ -216,7 +222,7 @@ export async function initPulseScheduler() {
 
     // Start the Pulse job queue processor
     await pulse.start();
-    console.log("[@pulsecron/pulse] Pulse queue processor started.");
+    console.log("[@pulsecron/pulse] Pulse queue processor started in SSR Server.");
 
     // Schedule 5:00 PM Daily Job ("0 17 * * *")
     await pulse.every("0 17 * * *", DAILY_5PM_JOB);

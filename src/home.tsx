@@ -106,6 +106,12 @@ function Home() {
     return () => window.removeEventListener("authChange", handleUpdate);
   }, [loadData]);
 
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const overall = calculateOverallStats(subjects, config.globalTarget);
 
   const [submittingSubId, setSubmittingSubId] = useState<string | null>(null);
@@ -643,13 +649,19 @@ function Home() {
             </div>
 
             <div className="chart-canvas-container">
-              {chartView === "doughnut" ? (
-                <div className="doughnut-wrap">
-                  <Doughnut data={doughnutData} options={doughnutOptions} />
-                </div>
+              {isMounted ? (
+                chartView === "doughnut" ? (
+                  <div className="doughnut-wrap">
+                    <Doughnut data={doughnutData} options={doughnutOptions} />
+                  </div>
+                ) : (
+                  <div className="bar-wrap">
+                    <Bar data={barData} options={barOptions} />
+                  </div>
+                )
               ) : (
-                <div className="bar-wrap">
-                  <Bar data={barData} options={barOptions} />
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#94a3b8" }}>
+                  <span>Loading analytics...</span>
                 </div>
               )}
             </div>
