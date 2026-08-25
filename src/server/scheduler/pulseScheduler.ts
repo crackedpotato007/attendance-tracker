@@ -1,4 +1,5 @@
 import { Pulse } from "@pulsecron/pulse";
+import mongoose from "mongoose";
 import { SubjectModel } from "../models/Subject.js";
 import { UserScheduleModel } from "../models/UserSchedule.js";
 import { AttendanceLogModel } from "../models/AttendanceLog.js";
@@ -7,11 +8,8 @@ const mongoURI =
   process.env.MONGODB_URI ||
   "mongodb+srv://admin:drskm1974@cluster0.m90cb.mongodb.net/attendance-tracker?appName=Cluster0";
 
+// Instantiate Pulse without immediate raw connection
 export const pulse = new Pulse({
-  db: {
-    address: mongoURI,
-    collection: "pulseJobs",
-  },
   defaultConcurrency: 5,
   maxConcurrency: 10,
 });
@@ -200,6 +198,13 @@ export async function initPulseScheduler() {
   try {
     console.log("[@pulsecron/pulse] Initializing Pulse MongoDB Scheduler in SSR Server...");
 
+    // Share active Mongoose database connection directly
+    if (mongoose.connection && mongoose.connection.db) {
+      pulse.mongo(mongoose.connection.db as any, "pulseJobs");
+    } else {
+      pulse.database(mongoURI, "pulseJobs");
+    }
+
     // 1. Define the 5:00 PM Attendance Auto-Increment Job
     pulse.define(DAILY_5PM_JOB, async (_job: any) => {
       console.log("[@pulsecron/pulse] Executing scheduled daily 5:00 PM attendance increment job...");
@@ -241,6 +246,6 @@ export async function initPulseScheduler() {
       );
     }
   } catch (error) {
-    console.error("[@pulsecron/pulse] Failed to initialize Pulse scheduler:", error);
+    console.warn("[@pulsecron/pulse] Pulse scheduler initialization notice:", error);
   }
 }
