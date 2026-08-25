@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import * as cookie from "cookie";
+import { parseCookie, stringifySetCookie } from "cookie";
 import { connectToMongo } from "./mongo.js";
 import { UserModel, type IUser } from "./models/User.js";
 
@@ -14,7 +14,9 @@ const COOKIE_NAME = "auth_token";
  */
 export function createAuthCookie(userId: string): string {
   const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
-  return cookie.serialize(COOKIE_NAME, token, {
+  return stringifySetCookie({
+    name: COOKIE_NAME,
+    value: token,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -27,7 +29,9 @@ export function createAuthCookie(userId: string): string {
  * Generate a Set-Cookie header to clear the auth cookie
  */
 export function clearAuthCookie(): string {
-  return cookie.serialize(COOKIE_NAME, "", {
+  return stringifySetCookie({
+    name: COOKIE_NAME,
+    value: "",
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -44,7 +48,7 @@ export async function getUserFromRequest(request: Request): Promise<IUser | null
   try {
     await connectToMongo();
     const cookieHeader = request.headers.get("Cookie") || "";
-    const cookies = cookie.parse(cookieHeader);
+    const cookies = parseCookie(cookieHeader);
     const token = cookies[COOKIE_NAME];
 
     if (!token) {
