@@ -79,6 +79,7 @@ export async function executeDailyAttendanceIncrement(
     sub.total = (sub.total || 0) + 1;
     sub.lastAutoIncrementDate = dateStr;
     sub.updatedAt = new Date();
+    
     await sub.save();
     updatedCount++;
   }
@@ -192,6 +193,12 @@ export async function executeDailyAutoAbsentFallback(
  * Initialize Pulse MongoDB Job Scheduler
  */
 export async function initPulseScheduler() {
+  if (
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.npm_lifecycle_event === "build"
+  ) {
+    return;
+  }
   if (isSchedulerInitialized) return;
   isSchedulerInitialized = true;
 

@@ -26,6 +26,14 @@ if (!cached) {
  * Guarantees that only ONE connection pool is ever created across the entire application lifecycle.
  */
 export async function connectToMongo(): Promise<typeof mongoose> {
+  // Never connect during Next.js static build phase / worker prerendering
+  if (
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.npm_lifecycle_event === "build"
+  ) {
+    return mongoose;
+  }
+
   // 1. If already connected, return existing singleton immediately in 0ms
   if (cached!.conn && mongoose.connection.readyState === 1) {
     return cached!.conn;
@@ -62,11 +70,4 @@ export async function connectToMongo(): Promise<typeof mongoose> {
   }
 
   return cached!.conn;
-}
-
-// Automatically warm the connection pool once when the server boots up
-if (typeof window === "undefined") {
-  connectToMongo().catch((err) =>
-    console.error("[MongoDB SSR] Boot connection warning:", err)
-  );
 }
