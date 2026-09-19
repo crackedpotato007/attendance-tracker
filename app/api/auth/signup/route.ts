@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToMongo } from "@/src/server/mongo";
 import { UserModel } from "@/src/server/models/User";
 import { UserScheduleModel } from "@/src/server/models/UserSchedule";
-import { hashPassword, createAuthCookie } from "@/src/server/auth";
+import { hashPassword, generateToken, isRequestHttps, COOKIE_NAME } from "@/src/server/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,7 +47,9 @@ export async function POST(request: NextRequest) {
     });
     await newSchedule.save();
 
-    const cookieHeader = createAuthCookie(newUser._id.toString());
+    const token = generateToken(newUser._id.toString());
+    const isHttps = isRequestHttps(request);
+
     const userData = {
       id: newUser._id.toString(),
       email: newUser.email,
@@ -56,10 +58,20 @@ export async function POST(request: NextRequest) {
     };
 
     const res = NextResponse.json(
-      { message: "Account created successfully!", user: userData },
+      { message: "Account created successfully!", user: userData, token },
       { status: 201 }
     );
-    res.headers.set("Set-Cookie", cookieHeader);
+
+    res.cookies.set({
+      name: COOKIE_NAME,
+      value: token,
+      httpOnly: true,
+      secure: isHttps,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
     return res;
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToMongo } from "@/src/server/mongo";
 import { UserModel } from "@/src/server/models/User";
-import { comparePassword, createAuthCookie } from "@/src/server/auth";
+import { comparePassword, generateToken, isRequestHttps, COOKIE_NAME } from "@/src/server/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,7 +32,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const cookieHeader = createAuthCookie(user._id.toString());
+    const token = generateToken(user._id.toString());
+    const isHttps = isRequestHttps(request);
+
     const userData = {
       id: user._id.toString(),
       email: user.email,
@@ -43,8 +45,19 @@ export async function POST(request: NextRequest) {
     const res = NextResponse.json({
       message: "Login successful!",
       user: userData,
+      token,
     });
-    res.headers.set("Set-Cookie", cookieHeader);
+
+    res.cookies.set({
+      name: COOKIE_NAME,
+      value: token,
+      httpOnly: true,
+      secure: isHttps,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
     return res;
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

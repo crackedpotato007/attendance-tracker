@@ -7,18 +7,39 @@ import { UserModel, type IUser } from "./models/User";
 export const JWT_SECRET =
   process.env.JWT_SECRET || "bunkpulse_super_secret_jwt_key_2026_x99";
 
-const COOKIE_NAME = "auth_token";
+export const COOKIE_NAME = "auth_token";
+
+/**
+ * Check if the incoming request is HTTPS or behind an HTTPS proxy
+ */
+export function isRequestHttps(request?: Request): boolean {
+  if (!request) return false;
+  try {
+    const proto = request.headers.get("x-forwarded-proto");
+    if (proto) return proto.toLowerCase() === "https";
+    return request.url.startsWith("https://");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Generate signed JWT token
+ */
+export function generateToken(userId: string): string {
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
+}
 
 /**
  * Generate a Set-Cookie header value for JWT authentication
  */
-export function createAuthCookie(userId: string): string {
-  const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
+export function createAuthCookie(userId: string, isHttps: boolean = false): string {
+  const token = generateToken(userId);
   return stringifySetCookie({
     name: COOKIE_NAME,
     value: token,
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isHttps,
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 7, // 7 days
@@ -28,12 +49,12 @@ export function createAuthCookie(userId: string): string {
 /**
  * Generate a Set-Cookie header to clear the auth cookie
  */
-export function clearAuthCookie(): string {
+export function clearAuthCookie(isHttps: boolean = false): string {
   return stringifySetCookie({
     name: COOKIE_NAME,
     value: "",
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isHttps,
     sameSite: "lax",
     path: "/",
     maxAge: 0,
@@ -42,14 +63,40 @@ export function clearAuthCookie(): string {
 }
 
 /**
- * Extract authenticated user from Web standard Request cookie
+ * Extract authenticated user from Web standard Request or NextRequest cookie
  */
 export async function getUserFromRequest(request: Request): Promise<IUser | null> {
   try {
     await connectToMongo();
-    const cookieHeader = request.headers.get("Cookie") || "";
-    const cookies = parseCookie(cookieHeader);
-    const token = cookies[COOKIE_NAME];
+    let token: string | undefined;
+
+    // 1. If NextRequest with .cookies object
+    if ("cookies" in request && typeof (request as any).cookies?.get === "function") {
+      const cookieObj = (request as any).cookies.get(COOKIE_NAME);
+      token = cookieObj ? cookieObj.value : undefined;
+    }
+
+    // 2. Fallback to header parsing (checks both 'cookie' and 'Cookie')
+    if (!token) {
+      const cookieHeader =
+        request.headers.get("cookie") ||
+        request.headers.get("Cookie") ||
+        "";
+      if (cookieHeader) {
+        const cookies = parseCookie(cookieHeader);
+        token = cookies[COOKIE_NAME];
+      }
+    }
+
+    // 3. Fallback to Authorization: Bearer <token>
+    if (!token) {
+      const authHeader =
+        request.headers.get("authorization") ||
+        request.headers.get("Authorization");
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.slice(7).trim();
+      }
+    }
 
     if (!token) {
       return null;

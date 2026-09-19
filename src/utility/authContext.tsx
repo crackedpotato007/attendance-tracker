@@ -57,6 +57,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await api.auth.login({ email, password: pass });
       if (res && res.user) {
+        if ((res as any).token && typeof window !== "undefined") {
+          localStorage.setItem("bunkpulse_token", (res as any).token);
+        }
         setCurrentUser(res.user);
         setIsAuthenticated(true);
         window.dispatchEvent(new Event("authChange"));
@@ -80,6 +83,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await api.auth.signup({ name, email, password: pass, college });
       if (res && res.user) {
+        if ((res as any).token && typeof window !== "undefined") {
+          localStorage.setItem("bunkpulse_token", (res as any).token);
+        }
         setCurrentUser(res.user);
         setIsAuthenticated(true);
         window.dispatchEvent(new Event("authChange"));
@@ -96,6 +102,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("bunkpulse_token");
+      }
       await api.auth.logout();
     } catch {
       // Ignore

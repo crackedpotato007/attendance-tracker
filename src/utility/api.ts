@@ -22,6 +22,14 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers.set("Content-Type", "application/json");
   }
 
+  // Dual-layer auth fallback: attach Authorization header if token exists in localStorage
+  if (typeof window !== "undefined") {
+    const localToken = localStorage.getItem("bunkpulse_token");
+    if (localToken && !headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${localToken}`);
+    }
+  }
+
   const response = await fetch(url, {
     ...options,
     headers,
