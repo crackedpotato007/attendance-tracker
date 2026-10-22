@@ -7,17 +7,47 @@ import { hashPassword, generateToken, isRequestHttps, COOKIE_NAME } from "@/src/
 export async function POST(request: NextRequest) {
   try {
     await connectToMongo();
-    const body = await request.json();
-    const { email, password, name, targetAttendance } = body;
+    const body = await request.json().catch(() => ({}));
+    const { email, password, name, targetAttendance } = body ?? {};
 
-    if (!email || !password || !name) {
+    if (
+      typeof email !== "string" ||
+      typeof password !== "string" ||
+      typeof name !== "string" ||
+      !email.trim() ||
+      !password ||
+      !name.trim()
+    ) {
       return NextResponse.json(
         { error: "Name, email, and password are required." },
         { status: 400 }
       );
     }
 
-    const existing = await UserModel.findOne({ email: email.toLowerCase().trim() });
+    const normalizedEmail = email.toLowerCase().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail) || normalizedEmail.length > 254) {
+      return NextResponse.json(
+        { error: "Please provide a valid email address." },
+        { status: 400 }
+      );
+    }
+
+    if (password.length < 6 || password.length > 72) {
+      return NextResponse.json(
+        { error: "Password must be between 6 and 72 characters." },
+        { status: 400 }
+      );
+    }
+
+    if (name.trim().length > 100) {
+      return NextResponse.json(
+        { error: "Name cannot exceed 100 characters." },
+        { status: 400 }
+      );
+    }
+
+    const existing = await UserModel.findOne({ email: normalizedEmail });
     if (existing) {
       return NextResponse.json(
         { error: "An account with this email already exists." },
@@ -27,12 +57,12 @@ export async function POST(request: NextRequest) {
 
     const passwordHash = await hashPassword(password);
     const target =
-      typeof targetAttendance === "number" && !isNaN(targetAttendance)
-        ? Math.min(100, Math.max(0, targetAttendance))
+      typeof targetAttendance === "number" && Number.isFinite(targetAttendance)
+        ? Math.min(100, Math.max(1, Math.round(targetAttendance)))
         : 75;
 
     const newUser = new UserModel({
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       passwordHash,
       name: name.trim(),
       targetAttendance: target,
@@ -74,6 +104,7 @@ export async function POST(request: NextRequest) {
 
     return res;
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("[POST /api/auth/signup] Error:", err);
+    return NextResponse.json({ error: "Internal server error during signup." }, { status: 500 });
   }
 }

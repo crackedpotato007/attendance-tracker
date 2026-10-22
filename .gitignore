@@ -12,6 +12,9 @@ dist
 dist-ssr
 build
 *.local
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -26,3 +29,16 @@ build
 
 .react-router/
 .next/
+*.tsbuildinfo
+
+# Android App Build & Local artifacts
+android-app/.gradle/
+android-app/build/
+android-app/*/build/
+android-app/local.properties
+*.apk
+*.aab
+*.ap_
+*.jks
+*.keystore
+*.hprof

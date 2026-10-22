@@ -13,6 +13,7 @@ export interface ISubject extends Document {
   workingDays?: number[]; // [1, 2, 3, 4, 5, 6] (0 = Sun, 1 = Mon...)
   startDate?: string; // YYYY-MM-DD
   lastAutoIncrementDate?: string; // YYYY-MM-DD
+  lectureTime?: string; // "09:30" (24h format)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -70,6 +71,10 @@ const SubjectSchema = new Schema<ISubject>(
       default: () => new Date().toISOString().split("T")[0],
     },
     lastAutoIncrementDate: {
+      type: String,
+      default: "",
+    },
+    lectureTime: {
       type: String,
       default: "",
     },

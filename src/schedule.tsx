@@ -21,7 +21,9 @@ import {
 import {
   triggerConfettiBurst,
   defaultWorkingDaysConfig,
+  isDateInHoliday,
   type WorkingDaysConfig,
+  type CustomHoliday,
   type AttendanceRecord,
   type Subject,
 } from "./utility/studentState";
@@ -35,7 +37,7 @@ interface CalendarDayItem {
   dayOfWeek: number;
   isCurrentMonth: boolean;
   isWorking: boolean;
-  holiday?: { date: string; name: string };
+  holiday?: CustomHoliday;
   dateLogs: AttendanceRecord[];
   status: "attended" | "partial" | "holiday" | "off" | "working-unlogged";
   isToday: boolean;
@@ -56,10 +58,10 @@ function Schedule() {
   const [activeDateModal, setActiveDateModal] = useState<string | null>(null);
   const [submittingSubId, setSubmittingSubId] = useState<string | null>(null);
 
-  // New Holiday Input State
-  const [holidayDate, setHolidayDate] = useState<string>(
-    new Date().toISOString().split("T")[0]!
-  );
+  // Holiday / Fest Form State with Start & End Date
+  const todayIso = new Date().toISOString().split("T")[0]!;
+  const [holidayStartDate, setHolidayStartDate] = useState<string>(todayIso);
+  const [holidayEndDate, setHolidayEndDate] = useState<string>(todayIso);
   const [holidayName, setHolidayName] = useState<string>("");
 
   const showToast = (msg: string) => {
@@ -136,7 +138,9 @@ function Schedule() {
 
     const updated = { ...config, activeDays: presetDays };
     setConfig(updated);
-    showToast(`Applied ${preset === "6day" ? "Mon–Sat 6-day" : preset === "5day" ? "Mon–Fri 5-day" : "7-day"} schedule!`);
+    showToast(
+      `Applied ${preset === "6day" ? "Mon–Sat 6-day" : preset === "5day" ? "Mon–Fri 5-day" : "7-day"} schedule!`
+    );
 
     try {
       await api.schedule.update({ activeDays: presetDays });
@@ -147,21 +151,51 @@ function Schedule() {
 
   const handleAddHoliday = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!holidayName.trim()) {
+    const trimmedName = holidayName.trim();
+    if (!trimmedName) {
       showToast("Please enter holiday or fest name.");
       return;
     }
 
-    const currentHols = config.customHolidays || [];
-    if (currentHols.some((h) => h.date === holidayDate)) {
-      showToast("A holiday already exists for this date.");
+    if (!holidayStartDate || !holidayEndDate) {
+      showToast("Please select both start and end dates.");
       return;
     }
 
-    const updatedHols = [...currentHols, { date: holidayDate, name: holidayName.trim() }];
+    if (holidayEndDate < holidayStartDate) {
+      showToast("End date cannot be earlier than start date.");
+      return;
+    }
+
+    const currentHols = config.customHolidays || [];
+    const isDuplicate = currentHols.some(
+      (h) =>
+        h.name.toLowerCase() === trimmedName.toLowerCase() &&
+        (h.startDate || h.date) === holidayStartDate &&
+        (h.endDate || h.date) === holidayEndDate
+    );
+    if (isDuplicate) {
+      showToast("This fest/holiday is already added for these dates.");
+      return;
+    }
+
+    const newHolidayItem: CustomHoliday = {
+      id: `hol_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      date: holidayStartDate,
+      startDate: holidayStartDate,
+      endDate: holidayEndDate,
+      name: trimmedName,
+    };
+
+    const updatedHols = [...currentHols, newHolidayItem];
     setConfig((prev) => ({ ...prev, customHolidays: updatedHols }));
     setHolidayName("");
-    showToast(`Added holiday: ${holidayName.trim()} on ${holidayDate} 🎉`);
+
+    const rangeLabel =
+      holidayStartDate === holidayEndDate
+        ? holidayStartDate
+        : `${holidayStartDate} to ${holidayEndDate}`;
+    showToast(`Added: ${trimmedName} (${rangeLabel}) 🎉`);
 
     try {
       await api.schedule.update({ customHolidays: updatedHols });
@@ -170,10 +204,19 @@ function Schedule() {
     }
   };
 
-  const handleRemoveHoliday = async (date: string) => {
-    const updatedHols = (config.customHolidays || []).filter((h) => h.date !== date);
+  const handleRemoveHoliday = async (holidayToRemove: CustomHoliday) => {
+    const updatedHols = (config.customHolidays || []).filter((h) => {
+      if (h.id && holidayToRemove.id) {
+        return h.id !== holidayToRemove.id;
+      }
+      const hStart = h.startDate || h.date;
+      const hEnd = h.endDate || h.date || h.startDate;
+      const remStart = holidayToRemove.startDate || holidayToRemove.date;
+      const remEnd = holidayToRemove.endDate || holidayToRemove.date || holidayToRemove.startDate;
+      return !(h.name === holidayToRemove.name && hStart === remStart && hEnd === remEnd);
+    });
     setConfig((prev) => ({ ...prev, customHolidays: updatedHols }));
-    showToast(`Removed holiday for ${date}.`);
+    showToast(`Removed "${holidayToRemove.name}".`);
 
     try {
       await api.schedule.update({ customHolidays: updatedHols });
@@ -311,7 +354,7 @@ function Schedule() {
 
     const isToday = dateStr === todayStr;
     const isWorking = (config.activeDays || [1, 2, 3, 4, 5, 6]).includes(dayOfWeek);
-    const holiday = (config.customHolidays || []).find((h) => h.date === dateStr);
+    const holiday = (config.customHolidays || []).find((h) => isDateInHoliday(dateStr, h));
 
     const dateLogs = logs.filter((l) => l.date === dateStr);
 
@@ -352,7 +395,7 @@ function Schedule() {
         isWorking: (config.activeDays || [1, 2, 3, 4, 5, 6]).includes(
           new Date(activeDateModal).getDay()
         ),
-        holiday: (config.customHolidays || []).find((h) => h.date === activeDateModal),
+        holiday: (config.customHolidays || []).find((h) => isDateInHoliday(activeDateModal, h)),
         dateLogs: logs.filter((l) => l.date === activeDateModal),
         status: "working-unlogged" as const,
         isToday: activeDateModal === todayStr,
@@ -373,7 +416,7 @@ function Schedule() {
             </div>
             <h1 className="sched-title">Working Days & Interactive Calendar</h1>
             <p className="sched-subtitle">
-              Configure your college working days, mark breaks, and click on any calendar day to modify or backfill your class attendance.
+              Configure your college working days, mark multi-day fests & breaks, and click on any calendar day to modify or backfill your class attendance.
             </p>
           </div>
         </section>
@@ -454,26 +497,51 @@ function Schedule() {
               </div>
             </div>
 
-            {/* Add Holiday Form */}
+            {/* Add Holiday / Fest Form with Start and End Dates */}
             <form onSubmit={handleAddHoliday} className="add-holiday-form">
-              <div className="hol-input-row">
-                <input
-                  type="date"
-                  value={holidayDate}
-                  onChange={(e) => setHolidayDate(e.target.value)}
-                  className="hol-date-input"
-                  required
-                />
+              <div className="hol-name-row">
                 <input
                   type="text"
-                  placeholder="e.g. Annual Tech Fest"
+                  placeholder="Fest or Holiday name (e.g. Annual Tech Fest)"
                   value={holidayName}
                   onChange={(e) => setHolidayName(e.target.value)}
                   className="hol-name-input"
                   required
                 />
+              </div>
+
+              <div className="hol-dates-row">
+                <div className="hol-date-col">
+                  <label className="hol-date-sublabel">Start Date</label>
+                  <input
+                    type="date"
+                    value={holidayStartDate}
+                    onChange={(e) => {
+                      const newStart = e.target.value;
+                      setHolidayStartDate(newStart);
+                      if (holidayEndDate < newStart) {
+                        setHolidayEndDate(newStart);
+                      }
+                    }}
+                    className="hol-date-input"
+                    required
+                  />
+                </div>
+
+                <div className="hol-date-col">
+                  <label className="hol-date-sublabel">End Date</label>
+                  <input
+                    type="date"
+                    value={holidayEndDate}
+                    min={holidayStartDate}
+                    onChange={(e) => setHolidayEndDate(e.target.value)}
+                    className="hol-date-input"
+                    required
+                  />
+                </div>
+
                 <button type="submit" className="btn-primary hol-add-btn">
-                  <Plus size={15} /> Add
+                  <Plus size={15} /> Add Fest
                 </button>
               </div>
             </form>
@@ -485,23 +553,42 @@ function Schedule() {
                   No custom holidays added yet. Add university fests or exam breaks above.
                 </span>
               ) : (
-                (config.customHolidays || []).map((hol) => (
-                  <div key={hol.date} className="hol-row-item">
-                    <div className="hol-row-left">
-                      <span className="hol-badge-date font-mono font-bold">
-                        {hol.date}
-                      </span>
-                      <span className="hol-row-title">{hol.name}</span>
+                (config.customHolidays || []).map((hol, idx) => {
+                  const start = hol.startDate || hol.date || "";
+                  const end = hol.endDate || hol.date || hol.startDate || "";
+                  const isMultiDay = start && end && start !== end;
+                  let dayCount = 1;
+                  if (isMultiDay) {
+                    const diffTime = Math.abs(new Date(end).getTime() - new Date(start).getTime());
+                    dayCount = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                  }
+
+                  return (
+                    <div key={hol.id || `${start}_${end}_${idx}`} className="hol-row-item">
+                      <div className="hol-row-left">
+                        <div className="hol-badge-container">
+                          <span className="hol-badge-date font-mono font-bold">
+                            {isMultiDay ? `${start} → ${end}` : start}
+                          </span>
+                          {isMultiDay && dayCount > 1 && (
+                            <span className="hol-duration-pill font-mono">
+                              {dayCount} days
+                            </span>
+                          )}
+                        </div>
+                        <span className="hol-row-title">{hol.name}</span>
+                      </div>
+                      <button
+                        className="hol-del-btn"
+                        onClick={() => handleRemoveHoliday(hol)}
+                        title="Remove Holiday / Fest"
+                        type="button"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
-                    <button
-                      className="hol-del-btn"
-                      onClick={() => handleRemoveHoliday(hol.date)}
-                      title="Remove Holiday"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </section>
@@ -678,7 +765,7 @@ function Schedule() {
                     <p style={{ fontSize: "0.82rem", color: "#94a3b8", margin: "0.2rem 0 0 0" }}>
                       {daysOfWeek.find((d) => d.index === activeDayItem.dayOfWeek)?.name || "Day"} •{" "}
                       {activeDayItem.holiday
-                        ? `Holiday: ${activeDayItem.holiday.name}`
+                        ? `Holiday / Fest: ${activeDayItem.holiday.name}`
                         : activeDayItem.isWorking
                         ? "Active College Day"
                         : "Configured Off-Day"}
@@ -693,6 +780,27 @@ function Schedule() {
                   <X size={18} />
                 </button>
               </div>
+
+              {/* Holiday Callout Notice */}
+              {activeDayItem.holiday && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.6rem",
+                    padding: "0.75rem 1rem",
+                    borderRadius: "10px",
+                    background: "rgba(168, 85, 247, 0.12)",
+                    border: "1px solid rgba(168, 85, 247, 0.3)",
+                    color: "#c084fc",
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  <Sparkles size={16} />
+                  <span>College Holiday / Fest: <strong>{activeDayItem.holiday.name}</strong> (classes are suspended)</span>
+                </div>
+              )}
 
               {/* Course List on this Date */}
               {subjects.length === 0 ? (

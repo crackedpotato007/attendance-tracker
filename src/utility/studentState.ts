@@ -24,12 +24,20 @@ export interface AttendanceRecord {
   note?: string;
 }
 
+export interface CustomHoliday {
+  id?: string;
+  date?: string; // YYYY-MM-DD (legacy / start date fallback)
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD
+  name: string;
+}
+
 export interface WorkingDaysConfig {
   activeDays: number[]; // 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday
   globalTarget: number; // e.g. 75
   semesterStartDate?: string; // YYYY-MM-DD
   semesterEndDate?: string; // YYYY-MM-DD
-  customHolidays: { date: string; name: string }[];
+  customHolidays: CustomHoliday[];
 }
 
 export interface SubjectStats {
@@ -56,13 +64,26 @@ export const initialSubjects: Subject[] = [];
 export const initialLogs: AttendanceRecord[] = [];
 
 /**
+ * Checks whether a given formatted date falls within a custom holiday/fest range.
+ */
+export function isDateInHoliday(
+  dateFormatted: string,
+  holiday: { date?: string; startDate?: string; endDate?: string }
+): boolean {
+  const start = holiday.startDate || holiday.date;
+  const end = holiday.endDate || holiday.date || holiday.startDate;
+  if (!start) return false;
+  return dateFormatted >= start && dateFormatted <= (end || start);
+}
+
+/**
  * Calculates scheduled lectures count from startDate up to a given date (default today)
- * based on selected working days and excluding custom holidays.
+ * based on selected working days and excluding custom holidays / fests.
  */
 export function calculateScheduledLecturesCount(
   startDateStr: string | undefined,
   workingDays: number[] | undefined,
-  customHolidays: { date: string }[] = [],
+  customHolidays: CustomHoliday[] = [],
   asOfDateStr?: string
 ): number {
   if (!startDateStr || !workingDays || workingDays.length === 0) return 0;
@@ -77,8 +98,8 @@ export function calculateScheduledLecturesCount(
 
   while (current <= end) {
     const dayOfWeek = current.getDay();
-    const dateFormatted = current.toISOString().split("T")[0];
-    const isHoliday = customHolidays.some((h) => h.date === dateFormatted);
+    const dateFormatted = current.toISOString().split("T")[0]!;
+    const isHoliday = customHolidays.some((h) => isDateInHoliday(dateFormatted, h));
 
     if (workingDays.includes(dayOfWeek) && !isHoliday) {
       count++;

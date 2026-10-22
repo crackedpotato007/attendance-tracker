@@ -164,44 +164,83 @@
   color: #ffffff;
 }
 
-/* Add Holiday Form */
+/* Add Holiday / Fest Form */
 .add-holiday-form {
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
 }
 
-.hol-input-row {
+.hol-name-row {
   display: flex;
-  gap: 0.5rem;
-}
-
-.hol-date-input {
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 0.55rem 0.75rem;
-  color: #ffffff;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  outline: none;
+  width: 100%;
 }
 
 .hol-name-input {
-  flex: 1;
+  width: 100%;
   background: rgba(15, 23, 42, 0.85);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 0.55rem 0.75rem;
+  padding: 0.6rem 0.75rem;
   color: #ffffff;
   font-family: var(--font-sans);
   font-size: 0.85rem;
   outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.hol-name-input:focus {
+  border-color: var(--accent-indigo);
+}
+
+.hol-dates-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.hol-date-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 125px;
+}
+
+.hol-date-sublabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hol-date-input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.65rem;
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.hol-date-input:focus {
+  border-color: var(--accent-cyan);
 }
 
 .hol-add-btn {
-  padding: 0.55rem 0.9rem;
+  padding: 0.55rem 0.95rem;
   font-size: 0.82rem;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 36px;
 }
 
 /* Holiday List */
@@ -209,7 +248,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  max-height: 180px;
+  max-height: 200px;
   overflow-y: auto;
 }
 
@@ -221,23 +260,48 @@
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
+  gap: 0.75rem;
 }
 
 .hol-row-left {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.hol-badge-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .hol-badge-date {
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   color: var(--accent-cyan);
+  white-space: nowrap;
+}
+
+.hol-duration-pill {
+  font-size: 0.66rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(168, 85, 247, 0.18);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .hol-row-title {
   font-size: 0.82rem;
   font-weight: 600;
   color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hol-del-btn {
@@ -246,10 +310,16 @@
   color: var(--text-muted);
   cursor: pointer;
   transition: color 0.2s ease;
+  padding: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
 }
 
 .hol-del-btn:hover {
   color: #f43f5e;
+  background: rgba(244, 63, 94, 0.1);
 }
 
 /* Monthly Calendar Matrix */
@@ -379,5 +449,12 @@
   .cal-legend-row {
     flex-wrap: wrap;
     gap: 0.5rem;
+  }
+  .hol-dates-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hol-add-btn {
+    justify-content: center;
   }
 }

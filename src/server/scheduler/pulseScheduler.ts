@@ -1,12 +1,9 @@
 import { Pulse } from "@pulsecron/pulse";
 import mongoose from "mongoose";
+import { mongoURI } from "../mongo";
 import { SubjectModel } from "../models/Subject";
 import { UserScheduleModel } from "../models/UserSchedule";
 import { AttendanceLogModel } from "../models/AttendanceLog";
-
-const mongoURI =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://admin:drskm1974@cluster0.m90cb.mongodb.net/attendance-tracker?appName=Cluster0";
 
 // Instantiate Pulse without immediate raw connection
 export const pulse = new Pulse({
@@ -21,58 +18,94 @@ let isSchedulerInitialized = false;
 
 /**
  * 1. Daily 5:00 PM Attendance Auto-Increment Scan
- * Runs across all users and courses in MongoDB.
- * If today's day-of-week is in subject.workingDays AND today is not a holiday,
- * appends +1 to subject.total and records lastAutoIncrementDate.
+ * When targetUserId is supplied, runs ONLY for that specific student.
+ * If targetUserId is omitted, runs globally for all users (server cron mode).
  */
 export async function executeDailyAttendanceIncrement(
   targetDate: Date = new Date(),
-  force: boolean = false
+  force: boolean = false,
+  targetUserId?: string
 ): Promise<{ updatedCount: number; message: string; date: string }> {
   const parts = targetDate.toISOString().split("T");
   const dateStr: string = parts[0] || new Date().toISOString().slice(0, 10);
   const dayOfWeek = targetDate.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
 
-  // 1. Fetch all courses in MongoDB
-  const subjects = await SubjectModel.find({});
+  // 1. Fetch courses in MongoDB (scoped if targetUserId provided)
+  const subjectQuery: any = targetUserId ? { userId: targetUserId } : {};
+  const subjects = await SubjectModel.find(subjectQuery);
 
-  // 2. Fetch all user schedules for custom holiday and working days settings
-  const schedules = await UserScheduleModel.find({});
+  // 2. Fetch user schedules for custom holiday and working days settings
+  const scheduleQuery: any = targetUserId ? { userId: targetUserId } : {};
+  const schedules = await UserScheduleModel.find(scheduleQuery);
   const scheduleMap = new Map<string, any>();
   schedules.forEach((s) => scheduleMap.set(s.userId.toString(), s));
+
+  // 3. Fetch existing logs for today to avoid double-counting if student already logged
+  const logQuery: any = { date: dateStr };
+  if (targetUserId) logQuery.userId = targetUserId;
+  const existingLogsToday = await AttendanceLogModel.find(logQuery);
+  const loggedSet = new Set(
+    existingLogsToday.map((l) => `${l.userId.toString()}__${l.subjectId}`)
+  );
 
   let updatedCount = 0;
 
   for (const sub of subjects) {
-    // If already processed for today, skip unless forced
-    if (!force && sub.lastAutoIncrementDate === dateStr) {
+    const key = `${sub.userId.toString()}__${sub._id.toString()}`;
+
+    // If student already has a log recorded for today, mark autoIncrementDate and do not double count
+    if (loggedSet.has(key)) {
+      if (sub.lastAutoIncrementDate !== dateStr) {
+        sub.lastAutoIncrementDate = dateStr;
+        sub.updatedAt = new Date();
+        await sub.save();
+      }
       continue;
     }
 
-    // Check if start date is in the future
-    if (sub.startDate && sub.startDate > dateStr) {
-      continue;
-    }
+    const userSched = scheduleMap.get(sub.userId.toString());
 
-    // Check if today is a scheduled lecture day for this course
+    // Determine whether this course is eligible to meet today
+    const isFutureStart = Boolean(sub.startDate && sub.startDate > dateStr);
     const workingDays =
       sub.workingDays && sub.workingDays.length > 0
         ? sub.workingDays
         : [1, 2, 3, 4, 5, 6];
+    const isCourseWorkingDay = workingDays.includes(dayOfWeek);
+    const isGlobalWorkingDay =
+      !userSched || !Array.isArray(userSched.activeDays) || userSched.activeDays.includes(dayOfWeek);
+    const isHoliday =
+      userSched &&
+      Array.isArray(userSched.customHolidays) &&
+      userSched.customHolidays.some((h: any) => {
+        const s = h.startDate || h.date;
+        const e = h.endDate || h.date || h.startDate;
+        if (!s) return false;
+        return dateStr >= s && dateStr <= (e || s);
+      });
 
-    if (!workingDays.includes(dayOfWeek)) {
-      continue; // Course does not meet on this day
+    const shouldMeetToday = !isFutureStart && isCourseWorkingDay && isGlobalWorkingDay && !isHoliday;
+
+    // If it was already auto-incremented today, but the user subsequently added a holiday
+    // or disabled today's working day, roll back the auto-increment!
+    if (sub.lastAutoIncrementDate === dateStr) {
+      if (!shouldMeetToday) {
+        sub.total = Math.max(0, (sub.total || 0) - 1);
+        sub.attended = Math.min(sub.attended || 0, sub.total);
+        sub.lastAutoIncrementDate = "";
+        sub.updatedAt = new Date();
+        await sub.save();
+      } else if (force) {
+        sub.total = (sub.total || 0) + 1;
+        sub.updatedAt = new Date();
+        await sub.save();
+        updatedCount++;
+      }
+      continue;
     }
 
-    // Check if today is marked as a custom holiday for this student
-    const userSched = scheduleMap.get(sub.userId.toString());
-    if (userSched && Array.isArray(userSched.customHolidays)) {
-      const isHoliday = userSched.customHolidays.some(
-        (h: any) => h.date === dateStr
-      );
-      if (isHoliday) {
-        continue; // University holiday, skip
-      }
+    if (!shouldMeetToday) {
+      continue;
     }
 
     // Increment total count by 1
@@ -85,7 +118,7 @@ export async function executeDailyAttendanceIncrement(
   }
 
   console.log(
-    `[@pulsecron/pulse] 🕒 5:00 PM Job completed: +1 appended to ${updatedCount} scheduled courses for ${dateStr}.`
+    `[@pulsecron/pulse] 🕒 5:00 PM Job completed: +1 appended to ${updatedCount} scheduled courses for ${dateStr}${targetUserId ? ` (user: ${targetUserId})` : ""}.`
   );
 
   return {
@@ -97,26 +130,31 @@ export async function executeDailyAttendanceIncrement(
 
 /**
  * 2. Daily 11:30 PM Auto-Absent Fallback Scan
- * If a student had a scheduled class today and did not log anything by 11:30 PM,
- * auto-assumes Absent and creates an AttendanceLog so the ledger is complete.
+ * When targetUserId is supplied, runs ONLY for that specific student.
+ * If targetUserId is omitted, runs globally for all users (server cron mode).
  */
 export async function executeDailyAutoAbsentFallback(
-  targetDate: Date = new Date()
+  targetDate: Date = new Date(),
+  targetUserId?: string
 ): Promise<{ autoAbsentCount: number; message: string; date: string }> {
   const parts = targetDate.toISOString().split("T");
   const dateStr: string = parts[0] || new Date().toISOString().slice(0, 10);
   const dayOfWeek = targetDate.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
 
-  // 1. Fetch all courses in MongoDB
-  const subjects = await SubjectModel.find({});
+  // 1. Fetch courses in MongoDB
+  const subjectQuery: any = targetUserId ? { userId: targetUserId } : {};
+  const subjects = await SubjectModel.find(subjectQuery);
 
-  // 2. Fetch all user schedules
-  const schedules = await UserScheduleModel.find({});
+  // 2. Fetch user schedules
+  const scheduleQuery: any = targetUserId ? { userId: targetUserId } : {};
+  const schedules = await UserScheduleModel.find(scheduleQuery);
   const scheduleMap = new Map<string, any>();
   schedules.forEach((s) => scheduleMap.set(s.userId.toString(), s));
 
   // 3. Fetch all attendance logs already recorded for today
-  const existingLogsToday = await AttendanceLogModel.find({ date: dateStr });
+  const logQuery: any = { date: dateStr };
+  if (targetUserId) logQuery.userId = targetUserId;
+  const existingLogsToday = await AttendanceLogModel.find(logQuery);
   const loggedSet = new Set(
     existingLogsToday.map((l) => `${l.userId.toString()}__${l.subjectId}`)
   );
@@ -145,14 +183,22 @@ export async function executeDailyAutoAbsentFallback(
       continue; // No class was scheduled today
     }
 
-    // Check custom university holidays
+    // Check custom university holidays / fests and global activeDays
     const userSched = scheduleMap.get(sub.userId.toString());
-    if (userSched && Array.isArray(userSched.customHolidays)) {
-      const isHoliday = userSched.customHolidays.some(
-        (h: any) => h.date === dateStr
-      );
-      if (isHoliday) {
-        continue; // Holiday, skip
+    if (userSched) {
+      if (Array.isArray(userSched.activeDays) && !userSched.activeDays.includes(dayOfWeek)) {
+        continue;
+      }
+      if (Array.isArray(userSched.customHolidays)) {
+        const isHoliday = userSched.customHolidays.some((h: any) => {
+          const s = h.startDate || h.date;
+          const e = h.endDate || h.date || h.startDate;
+          if (!s) return false;
+          return dateStr >= s && dateStr <= (e || s);
+        });
+        if (isHoliday) {
+          continue; // Holiday / fest, skip
+        }
       }
     }
 
@@ -179,7 +225,7 @@ export async function executeDailyAutoAbsentFallback(
   }
 
   console.log(
-    `[@pulsecron/pulse] 🌙 11:30 PM Auto-Absent Job completed: ${autoAbsentCount} unmarked classes recorded as Absent for ${dateStr}.`
+    `[@pulsecron/pulse] 🌙 11:30 PM Auto-Absent Job completed: ${autoAbsentCount} unmarked classes recorded as Absent for ${dateStr}${targetUserId ? ` (user: ${targetUserId})` : ""}.`
   );
 
   return {

@@ -4,12 +4,13 @@ import { requireAuth } from "@/src/server/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAuth(request, { jsonOnly: true });
-    const result = await executeDailyAttendanceIncrement(new Date(), true);
+    const user = await requireAuth(request, { jsonOnly: true });
+    // Scoped strictly to authenticated user's enrolled courses, idempotent (force = false)
+    const result = await executeDailyAttendanceIncrement(new Date(), false, user._id.toString());
     return NextResponse.json({
       success: true,
       result,
-      message: "Pulse daily attendance increment executed successfully via Next.js!",
+      message: "Daily attendance check executed for your enrolled courses!",
     });
   } catch (err: any) {
     if (err instanceof Response) return err;

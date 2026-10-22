@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import { initPulseScheduler } from "./scheduler/pulseScheduler";
 
-const mongoURI =
+export const mongoURI =
   process.env.MONGODB_URI ||
   "mongodb+srv://admin:drskm1974@cluster0.m90cb.mongodb.net/attendance-tracker?appName=Cluster0";
 

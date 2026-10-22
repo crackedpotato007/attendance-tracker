@@ -84,6 +84,8 @@ export const api = {
       api.post<{ user: any; message: string }>("/auth/login", data),
     me: () =>
       api.get<{ user: any }>("/auth/me"),
+    updateProfile: (data: { name?: string; targetAttendance?: number }) =>
+      api.put<{ user: any; message: string }>("/auth/me", data),
     logout: () =>
       api.post<{ message: string }>("/auth/logout"),
   },

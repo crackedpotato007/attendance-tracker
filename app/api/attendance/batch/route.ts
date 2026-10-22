@@ -10,12 +10,13 @@ function formatSubject(s: any) {
     code: s.code,
     name: s.name,
     faculty: s.faculty || "",
+    professor: s.faculty || "",
     room: s.room || "",
     color: s.color || "#6366f1",
-    targetPercentage: s.targetPercentage || 75,
-    attended: s.attended || 0,
-    total: s.total || 0,
-    workingDays: s.workingDays || [1, 2, 3, 4, 5, 6],
+    targetPercentage: s.targetPercentage && s.targetPercentage > 0 ? s.targetPercentage : 75,
+    attended: Math.max(0, s.attended || 0),
+    total: Math.max(0, s.total || 0),
+    workingDays: Array.isArray(s.workingDays) ? s.workingDays : [1, 2, 3, 4, 5, 6],
     startDate: s.startDate || new Date().toISOString().split("T")[0],
     lastAutoIncrementDate: s.lastAutoIncrementDate || "",
     createdAt: s.createdAt,
@@ -35,22 +36,39 @@ function formatLog(l: any) {
   };
 }
 
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth(request, { jsonOnly: true });
     await connectToMongo();
 
-    const body = await request.json();
-    const date = body.date || new Date().toISOString().split("T")[0];
+    const body = await request.json().catch(() => ({}));
+    const todayStr = new Date().toISOString().split("T")[0]!;
+    const rawDate = typeof body?.date === "string" && body.date.trim() ? body.date.trim() : todayStr;
 
-    const subjects = await SubjectModel.find({ userId: user._id as any });
+    if (!DATE_REGEX.test(rawDate)) {
+      return NextResponse.json(
+        { error: "Invalid date format. Expected YYYY-MM-DD." },
+        { status: 400 }
+      );
+    }
+
+    const date = rawDate;
+    const isToday = date === todayStr;
+
+    const allSubjects = await SubjectModel.find({ userId: user._id as any });
+    // Filter out subjects whose startDate is after the target date
+    const activeSubjects = allSubjects.filter((s) => !s.startDate || s.startDate <= date);
+    const subjectsToMark = activeSubjects.length > 0 ? activeSubjects : allSubjects;
+
     const updatedLogs = [];
 
-    for (const sub of subjects) {
+    for (const sub of subjectsToMark) {
       const existingLog = await AttendanceLogModel.findOne({
         userId: user._id as any,
         subjectId: sub._id.toString(),
-        date: String(date),
+        date,
       });
 
       if (existingLog) {
@@ -65,6 +83,7 @@ export async function POST(request: NextRequest) {
         }
         sub.attended += 1;
         sub.total += 1;
+        sub.attended = Math.min(sub.attended, sub.total);
         sub.updatedAt = new Date();
         await sub.save();
 
@@ -73,8 +92,15 @@ export async function POST(request: NextRequest) {
         await existingLog.save();
         updatedLogs.push(formatLog(existingLog));
       } else {
+        const alreadyIncrementedByCron = isToday && sub.lastAutoIncrementDate === todayStr;
         sub.attended += 1;
-        sub.total += 1;
+        if (!alreadyIncrementedByCron) {
+          sub.total += 1;
+          if (isToday) {
+            sub.lastAutoIncrementDate = todayStr;
+          }
+        }
+        sub.attended = Math.min(sub.attended, sub.total);
         sub.updatedAt = new Date();
         await sub.save();
 
@@ -82,7 +108,7 @@ export async function POST(request: NextRequest) {
           userId: user._id,
           subjectId: sub._id.toString(),
           subjectName: sub.name,
-          date: String(date),
+          date,
           status: "present",
           note: "Batch 100% attendance logged",
         });
@@ -93,12 +119,13 @@ export async function POST(request: NextRequest) {
 
     const updatedSubjects = await SubjectModel.find({ userId: user._id as any }).sort({ name: 1 });
     return NextResponse.json({
-      message: "All courses marked present for " + date + "!",
+      message: `All courses marked present for ${date}!`,
       logs: updatedLogs,
       subjects: updatedSubjects.map(formatSubject),
     });
   } catch (err: any) {
     if (err instanceof Response) return err;
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("[POST /api/attendance/batch] Error:", err);
+    return NextResponse.json({ error: "Failed to batch-mark attendance." }, { status: 500 });
   }
 }

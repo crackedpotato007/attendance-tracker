@@ -4,12 +4,13 @@ import { requireAuth } from "@/src/server/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAuth(request, { jsonOnly: true });
-    const result = await executeDailyAutoAbsentFallback(new Date());
+    const user = await requireAuth(request, { jsonOnly: true });
+    // Scoped strictly to authenticated user's enrolled courses
+    const result = await executeDailyAutoAbsentFallback(new Date(), user._id.toString());
     return NextResponse.json({
       success: true,
       result,
-      message: "Pulse 11:30 PM auto-absent fallback executed successfully via Next.js!",
+      message: "Daily auto-absent check executed for your enrolled courses!",
     });
   } catch (err: any) {
     if (err instanceof Response) return err;

@@ -6,13 +6,20 @@ import { comparePassword, generateToken, isRequestHttps, COOKIE_NAME } from "@/s
 export async function POST(request: NextRequest) {
   try {
     await connectToMongo();
-    const body = await request.json();
-    const { email, password } = body;
+    const body = await request.json().catch(() => ({}));
+    const { email, password } = body ?? {};
 
-    if (!email || !password) {
+    if (typeof email !== "string" || typeof password !== "string" || !email.trim() || !password) {
       return NextResponse.json(
-        { error: "Email and password are required." },
+        { error: "Valid email and password are required." },
         { status: 400 }
+      );
+    }
+
+    if (password.length > 72) {
+      return NextResponse.json(
+        { error: "Invalid email or password." },
+        { status: 401 }
       );
     }
 
@@ -60,6 +67,7 @@ export async function POST(request: NextRequest) {
 
     return res;
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("[POST /api/auth/login] Error:", err);
+    return NextResponse.json({ error: "Internal server error during login." }, { status: 500 });
   }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { connectToMongo } from "@/src/server/mongo";
 import { AttendanceLogModel } from "@/src/server/models/AttendanceLog";
 import { SubjectModel } from "@/src/server/models/Subject";
@@ -13,6 +14,10 @@ export async function DELETE(
     await connectToMongo();
     const { id } = await params;
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Invalid log ID." }, { status: 400 });
+    }
+
     const log = await AttendanceLogModel.findOneAndDelete({
       _id: id as any,
       userId: user._id as any,
@@ -22,27 +27,30 @@ export async function DELETE(
       return NextResponse.json({ error: "Log entry not found." }, { status: 404 });
     }
 
-    // Rollback subject counter
-    if (log.status === "present" || log.status === "absent") {
-      const sub = await SubjectModel.findOne({
-        _id: log.subjectId as any,
-        userId: user._id as any,
-      });
-      if (sub) {
-        if (log.status === "present") {
-          sub.attended = Math.max(0, sub.attended - 1);
-          sub.total = Math.max(0, sub.total - 1);
-        } else if (log.status === "absent") {
-          sub.total = Math.max(0, sub.total - 1);
-        }
-        sub.updatedAt = new Date();
-        await sub.save();
+    // Rollback subject counter and auto-increment marker if applicable
+    const sub = await SubjectModel.findOne({
+      _id: log.subjectId as any,
+      userId: user._id as any,
+    });
+    if (sub) {
+      if (log.status === "present") {
+        sub.attended = Math.max(0, sub.attended - 1);
+        sub.total = Math.max(0, sub.total - 1);
+      } else if (log.status === "absent") {
+        sub.total = Math.max(0, sub.total - 1);
       }
+      if (sub.lastAutoIncrementDate === log.date) {
+        sub.lastAutoIncrementDate = "";
+      }
+      sub.attended = Math.min(sub.attended, sub.total);
+      sub.updatedAt = new Date();
+      await sub.save();
     }
 
     return NextResponse.json({ message: "Attendance log reverted." });
   } catch (err: any) {
     if (err instanceof Response) return err;
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("[DELETE /api/attendance/[id]] Error:", err);
+    return NextResponse.json({ error: "Failed to revert attendance log." }, { status: 500 });
   }
 }
